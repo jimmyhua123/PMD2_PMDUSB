@@ -66,8 +66,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App\AppServices.cs" />
-    <Compile Include="App\Components\DeviceToggle.cs" />
-    <Compile Include="App\Components\StatusBar.cs" />
+    <Compile Include="App\Components\DeviceToggle.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="App\Components\StatusBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="App\MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
