@@ -1,661 +1,330 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// File: App/MainForm.cs
+using System;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-
-
-
-namespace PMD2
+namespace PMD2_PMDUSB.App
 {
-    public partial class MainForm : Form
+    public sealed class MainForm : Form
     {
-        private PMD.Core.Interfaces.IDeviceBackend _backend;
+        private readonly AppServices _services;
 
+        // --- UI ---
+        private readonly Panel panelTop;
+        private readonly ComboBox cmbDevice;
+        private readonly Button btnConnect;
+        private readonly Button btnDisconnect;
+        private readonly ComboBox cmbPort;           // 預留：選 COM（先不做實作掃描）
+        private readonly ComboBox cmbBaud;           // 預留：波特率（PMD-USB/PMD2 若有差異日後再調整）
+        private readonly Panel panelHost;            // 兩種 View 的容器
+        private readonly StatusStrip statusStrip;
+        private readonly ToolStripStatusLabel statusLeft;
+        private readonly ToolStripStatusLabel statusRight;
 
-
-        // === 介面控制項(左側) ===
-        private GroupBox grpControl;
-        private Button btnConnect, btnStart, btnStop;
-        private Button btnCalibration, btnCsv, btnExportCsv;
-        private CheckBox chkEnableMaxMin;
-        private Label lblStatus, lblInterval;
-        private NumericUpDown numInterval;
-        private RadioButton rbMax, rbMin;
-        private Button btnShowGraph;
-
-        // === 顯示區 ===
-        private Label lblTotalPower;
-        private Dictionary<string, Dictionary<string, Label>> atxLabels;
-        private Dictionary<string, Dictionary<string, Label>> epsLabels;
-        private Dictionary<string, Dictionary<string, Label>> pcieLabels;
-        private Dictionary<string, Dictionary<string, Label>> atxRecordLabels;
-        private Dictionary<string, Dictionary<string, Label>> epsRecordLabels;
-        private Dictionary<string, Dictionary<string, Label>> pcieRecordLabels;
-
-        // 用於儲存 max/min 數值
-        private Dictionary<string, Dictionary<string, Dictionary<string, double>>> recordValues;
-        private string[] atxChannels = { "12V", "5V", "5VSB", "3.3V" };
-        private string[] epsChannels = { "EPS1", "EPS2" };
-        private string[] pcieChannels = { "PCIE1", "PCIE2", "PCIE3", "HPWR" };
-
-        // 後台讀取
-        private bool reading;
-        private CancellationTokenSource cts;
-        private SensorStruct? latestSensor;
-
+        // --- 狀態 ---
+        private UserControl? _currentView;
+        private string _currentDevice = "PMD2"; // "PMD2" or "PMD-USB"
+        private bool _connected;
 
         public MainForm()
         {
-            InitializeComponent(); // Designer 空檔，僅用程式碼生成
+            Text = "PMD2 / PMD-USB - Unified Tool";
+            MinimumSize = new Size(1100, 700);
+            StartPosition = FormStartPosition.CenterScreen;
+            KeyPreview = true;
 
-            this.Text = "PMD2 MainForm - Full Code Layout";
-            this.Width = 1000;  // 調整寬度
-            this.Height = 500;  // 調整高度
+            // 建立 AppServices（抓取 UI 同步情境）
+            _services = new AppServices(SynchronizationContext.Current);
+            _services.LogEmitted += OnLogEmitted;
 
-            // 設置邊框樣式，使用單一固定邊框
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            // --- 建 UI ---
+            panelTop = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.FromArgb(245, 245, 245) };
 
-            // 禁用最大化按鈕
-            this.MaximizeBox = false;
-
-            BuildUI();
-            this.Load += MainForm_Load;
-        }
-
-        private void BuildUI()
-        {
-            // 1. 左側控制 GroupBox
-            grpControl = new GroupBox
+            var lblDevice = new Label { Text = "Device:", AutoSize = true, Left = 12, Top = 15 };
+            cmbDevice = new ComboBox
             {
-                Text = "Device Control",
-                Left = 10,
+                Left = lblDevice.Right + 8,
                 Top = 10,
-                Width = 180,
-                Height = 420
+                Width = 160,
+                DropDownStyle = ComboBoxStyle.DropDownList
             };
-            this.Controls.Add(grpControl);
+            cmbDevice.Items.AddRange(new object[] { "PMD2", "PMD-USB" });
+            cmbDevice.SelectedIndexChanged += (_, __) => OnDeviceChanged();
 
-            int bx = 10, by = 20; // 用於在 grpControl 中定位子控制項
+            var lblPort = new Label { Text = "Port:", AutoSize = true, Left = cmbDevice.Right + 16, Top = 15 };
+            cmbPort = new ComboBox
+            {
+                Left = lblPort.Right + 8,
+                Top = 10,
+                Width = 120,
+                DropDownStyle = ComboBoxStyle.DropDown
+            };
+            cmbPort.Items.AddRange(new object[] { "AUTO", "COM3", "COM4", "COM5" }); // 先給假選項，日後做掃描替換
 
-            // Connect
+            var lblBaud = new Label { Text = "Baud:", AutoSize = true, Left = cmbPort.Right + 16, Top = 15 };
+            cmbBaud = new ComboBox
+            {
+                Left = lblBaud.Right + 8,
+                Top = 10,
+                Width = 100,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbBaud.Items.AddRange(new object[] { "AUTO", "115200", "230400", "460800", "921600" });
+            cmbBaud.SelectedIndex = 0;
+
             btnConnect = new Button
             {
-                Text = "Connect Device",
-                Left = bx,
-                Top = by,
-                Width = 150
+                Text = "Connect",
+                Left = cmbBaud.Right + 24,
+                Top = 8,
+                Width = 100,
+                Height = 30
             };
-            btnConnect.Click += BtnConnect_Click;
-            grpControl.Controls.Add(btnConnect);
-            by += 30;
+            btnConnect.Click += (_, __) => DoConnect();
 
-            // Start
-            btnStart = new Button
+            btnDisconnect = new Button
             {
-                Text = "Start Read",
-                Left = bx,
-                Top = by,
-                Width = 150
+                Text = "Disconnect",
+                Left = btnConnect.Right + 8,
+                Top = 8,
+                Width = 110,
+                Height = 30,
+                Enabled = false
             };
-            btnStart.Click += BtnStart_Click;
-            grpControl.Controls.Add(btnStart);
-            by += 30;
+            btnDisconnect.Click += (_, __) => DoDisconnect();
 
-            // Stop
-            btnStop = new Button
-            {
-                Text = "Stop Read",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            btnStop.Click += BtnStop_Click;
-            grpControl.Controls.Add(btnStop);
-            by += 30;
+            panelTop.Controls.Add(lblDevice);
+            panelTop.Controls.Add(cmbDevice);
+            panelTop.Controls.Add(lblPort);
+            panelTop.Controls.Add(cmbPort);
+            panelTop.Controls.Add(lblBaud);
+            panelTop.Controls.Add(cmbBaud);
+            panelTop.Controls.Add(btnConnect);
+            panelTop.Controls.Add(btnDisconnect);
 
-            // 狀態
-            lblStatus = new Label
-            {
-                Text = "Status: Disconnected",
-                Left = bx,
-                Top = by,
-                AutoSize = true
-            };
-            grpControl.Controls.Add(lblStatus);
-            by += 30;
+            panelHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
-            // Calibration
-            btnCalibration = new Button
-            {
-                Text = "Calibration",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            btnCalibration.Click += (s, e) =>
-            {
-                var f = new CalibrationForm();
-                f.ShowDialog();
-            };
-            grpControl.Controls.Add(btnCalibration);
-            by += 30;
+            statusStrip = new StatusStrip();
+            statusLeft = new ToolStripStatusLabel { Spring = true, TextAlign = ContentAlignment.MiddleLeft, Text = "Ready." };
+            statusRight = new ToolStripStatusLabel { Spring = false, TextAlign = ContentAlignment.MiddleRight, Text = "Idle" };
+            statusStrip.Items.Add(statusLeft);
+            statusStrip.Items.Add(statusRight);
 
-            // CSV Settings
-            btnCsv = new Button
-            {
-                Text = "CSV Settings",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            btnCsv.Click += (s, e) =>
-            {
-                var csvForm = new CsvSettingsForm();
-                csvForm.ShowDialog();
-            };
-            grpControl.Controls.Add(btnCsv);
-            by += 30;
+            Controls.Add(panelHost);
+            Controls.Add(panelTop);
+            Controls.Add(statusStrip);
 
-            // Export CSV
-            btnExportCsv = new Button
-            {
-                Text = "Export CSV Now",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            btnExportCsv.Click += (s, e) =>
-            {
-                if (latestSensor.HasValue)
-                {
-                    Exporter.ExportCsv(latestSensor.Value, null);
-                }
-                else
-                {
-                    MessageBox.Show("No Data");
-                }
-            };
-            grpControl.Controls.Add(btnExportCsv);
-            by += 30;
+            // 快捷鍵
+            KeyDown += MainForm_KeyDown;
 
-            Button btnExportMaxMin = new Button
-            {
-                Text = "Export Max/Min CSV",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            btnExportMaxMin.Click += (s, e) =>
-            {
-                // 假設您已有 recordValues 作為 max/min 記錄的巢狀字典
-                // 直接呼叫 Exporter.ExportCsvMaxMin
-                if (recordValues != null)
-                {
-                    // 若您想使用某些自訂欄位：List<string> fields = ...
-                    // 否則就傳入 null 讓它使用預設欄位
-                    Exporter.ExportCsvMaxMin(recordValues, null);
-                }
-                else
-                {
-                    MessageBox.Show("No max/min record to export.");
-                }
-            };
-            grpControl.Controls.Add(btnExportMaxMin);
-            by += 30;
-            // Enable MaxMin
-            chkEnableMaxMin = new CheckBox
-            {
-                Text = "Enable Max/Min",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            chkEnableMaxMin.Checked = false;
-            grpControl.Controls.Add(chkEnableMaxMin);
-            by += 30;
+            // 載入設定（裝置/Port）
+            LoadPersistedUiState();
 
-            // Max/Min Radiobuttons
-            rbMax = new RadioButton
-            {
-                Text = "Max",
-                Left = bx,
-                Top = by,
-                Checked = true  // 預設為 Max
-            };
-            grpControl.Controls.Add(rbMax);
+            // 依裝置載入對應 View
+            EnsureViewForDevice(_currentDevice);
 
-            rbMin = new RadioButton
-            {
-                Text = "Min",
-                Left = rbMax.Right,
-                Top = by
-            };
-            grpControl.Controls.Add(rbMin);
-            by += 30;
-
-            // Interval
-            lblInterval = new Label
-            {
-                Text = "Interval(sec):",
-                Left = bx,
-                Top = by,
-                AutoSize = true
-            };
-            grpControl.Controls.Add(lblInterval);
-
-            numInterval = new NumericUpDown
-            {
-                Left = bx + 80,
-                Top = by - 3,
-                Width = 60,
-                Minimum = 0.05m,
-                Maximum = 10m,
-                DecimalPlaces = 2,
-                Increment = 0.05m,
-                Value = 0.10m
-            };
-            grpControl.Controls.Add(numInterval);
-            by += 40;
-
-            btnShowGraph = new Button
-            {
-                Text = "Open Graph Window",
-                Left = bx,
-                Top = by,
-                Width = 150
-            };
-            btnShowGraph.Click += BtnShowGraph_Click;
-            grpControl.Controls.Add(btnShowGraph);
-            by += 30;
-
-
-            // ============== 右半部分 ==============
-            // 動態表格: ATX24, EPS, PCIE 以及各自對應的 Recorded
-            int mainTop = 10;
-            int groupHeight = 120;
-            int groupWeight = 380;
-            // ATX 即時
-            GroupBox gbAtx = new GroupBox
-            {
-                Text = "ATX24 (12V, 5V, 5VSB, 3.3V)",
-                Left = 200,
-                Top = mainTop,
-                Width = groupWeight,
-                Height = groupHeight
-            };
-            this.Controls.Add(gbAtx);
-            atxLabels = DisplayHelper.CreateInvertedTable(gbAtx, atxChannels, 10, 20);
-
-            // ATX Recorded
-            GroupBox gbAtxRec = new GroupBox
-            {
-                Text = "ATX24 (Recorded Max/Min)",
-                Left = gbAtx.Right + 10,
-                Top = mainTop,
-                Width = groupWeight,
-                Height = groupHeight
-            };
-            this.Controls.Add(gbAtxRec);
-            atxRecordLabels = DisplayHelper.CreateInvertedTable(gbAtxRec, atxChannels, 10, 20);
-
-            // EPS 即時
-            GroupBox gbEps = new GroupBox
-            {
-                Text = "EPS (EPS1, EPS2)",
-                Left = 200,
-                Top = gbAtx.Bottom + 10,
-                Width = groupWeight,
-                Height = groupHeight
-            };
-            this.Controls.Add(gbEps);
-            epsLabels = DisplayHelper.CreateInvertedTable(gbEps, epsChannels, 10, 20);
-
-            // EPS Recorded
-            GroupBox gbEpsRec = new GroupBox
-            {
-                Text = "EPS (Recorded)",
-                Left = gbEps.Right + 10,
-                Top = gbAtxRec.Bottom + 10, // 依需要微調
-                Width = groupWeight,
-                Height = groupHeight
-            };
-            this.Controls.Add(gbEpsRec);
-            epsRecordLabels = DisplayHelper.CreateInvertedTable(gbEpsRec, epsChannels, 10, 20);
-
-            // PCIE 即時
-            GroupBox gbPcie = new GroupBox
-            {
-                Text = "PCIE & HPWR",
-                Left = 200,
-                Top = gbEps.Bottom + 10,
-                Width = groupWeight,
-                Height = groupHeight
-            };
-            this.Controls.Add(gbPcie);
-            pcieLabels = DisplayHelper.CreateInvertedTable(gbPcie, pcieChannels, 10, 20);
-
-            // PCIE Recorded
-            GroupBox gbPcieRec = new GroupBox
-            {
-                Text = "PCIE & HPWR (Recorded)",
-                Left = gbPcie.Right + 10,
-                Top = gbEpsRec.Bottom + 10,
-                Width = groupWeight,
-                Height = groupHeight
-            };
-            this.Controls.Add(gbPcieRec);
-            pcieRecordLabels = DisplayHelper.CreateInvertedTable(gbPcieRec, pcieChannels, 10, 20);
-
-
-
-            // 最底部：Total Power
-            lblTotalPower = new Label
-            {
-                Text = "Total Power: 0.000 W",
-                Left = 200,
-                Top = gbPcieRec.Bottom + 10,
-                AutoSize = true,
-                Font = new Font("微軟正黑體", 12, FontStyle.Bold)
-            };
-            this.Controls.Add(lblTotalPower);
+            // 初始 Log
+            _services.LogInfo("MainForm initialized.");
         }
 
-        private MonitorGraphForm graphForm;
-        private void BtnShowGraph_Click(object sender, EventArgs e)
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (graphForm == null || graphForm.IsDisposed)
-            {
-                graphForm = new MonitorGraphForm();
-            }
-            graphForm.Show(); // 顯示 (非模態)
+            base.OnFormClosed(e);
+            _services?.Dispose();
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
+        // ---------------- UI 事件 ----------------
+
+        private void MainForm_KeyDown(object? sender, KeyEventArgs e)
         {
-            comboSource.Items.AddRange(new[] { "PMD2", "PMD-USB" });
-            comboSource.SelectedIndex = 0;
-            SwitchBackend(PMD.App.DeviceType.PMD2);
-
-            // 初始化
-            serialComm = new SerialComm();
-
-            recordValues = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
-            recordValues["ATX"] = new Dictionary<string, Dictionary<string, double>>();
-            recordValues["EPS"] = new Dictionary<string, Dictionary<string, double>>();
-            recordValues["PCIE"] = new Dictionary<string, Dictionary<string, double>>();
-
-            string[] keys = { "Voltage", "Current", "Power" };
-            foreach (var g in recordValues.Keys)
+            if (e.Control && e.KeyCode == Keys.D1) // Ctrl+1 -> PMD2
             {
-                foreach (var k in keys)
-                {
-                    recordValues[g][k] = new Dictionary<string, double>();
-                }
+                cmbDevice.SelectedItem = "PMD2";
+                e.Handled = true;
             }
-
-            foreach (var ch in atxChannels)
+            else if (e.Control && e.KeyCode == Keys.D2) // Ctrl+2 -> PMD-USB
             {
-                recordValues["ATX"]["Voltage"][ch] = 0.0;
-                recordValues["ATX"]["Current"][ch] = 0.0;
-                recordValues["ATX"]["Power"][ch] = 0.0;
+                cmbDevice.SelectedItem = "PMD-USB";
+                e.Handled = true;
             }
-            foreach (var ch in epsChannels)
+            else if (e.Control && e.KeyCode == Keys.E) // Ctrl+E -> 開 export 資料夾
             {
-                recordValues["EPS"]["Voltage"][ch] = 0.0;
-                recordValues["EPS"]["Current"][ch] = 0.0;
-                recordValues["EPS"]["Power"][ch] = 0.0;
-            }
-            foreach (var ch in pcieChannels)
-            {
-                recordValues["PCIE"]["Voltage"][ch] = 0.0;
-                recordValues["PCIE"]["Current"][ch] = 0.0;
-                recordValues["PCIE"]["Power"][ch] = 0.0;
-            }
-        }
-
-        private void comboSource_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            var type = comboSource.SelectedIndex == 0 ? PMD.App.DeviceType.PMD2 : PMD.App.DeviceType.PMD_USB;
-            SwitchBackend(type);
-        }
-
-        private void SwitchBackend(PMD.App.DeviceType type)
-        {
-            _backend?.Dispose();
-            _backend = PMD.App.BackendFactory.Create(type);
-            _backend.Status += (_, msg) => AppendLog(msg);
-            _backend.DataReceived += (_, s) => OnSensorData(s); // 這裡更新你的圖表/表格
-        }
-
-        private async void btnConnect_Click(object sender, EventArgs e)
-        {
-            await _backend!.ConnectAsync(txtPort.Text, int.Parse(txtBaud.Text));
-        }
-
-        private async void btnDisconnect_Click(object sender, EventArgs e)
-        {
-            await _backend!.DisconnectAsync();
-        }
-
-        private void BtnConnect_Click(object sender, EventArgs e)
-        {
-
-            if (serialComm.IsOpen)
-            {
-                lblStatus.Text = "Status：Connected";
-                MessageBox.Show("Connected");
-
-                return;
-            }
-            if (serialComm.OpenPort())
-            {
-                if (serialComm.DeviceHandshake())
-                {
-                    lblStatus.Text = "Status：Connected";
-                }
-            }
-        }
-
-        private void BtnStart_Click(object sender, EventArgs e)
-        {
-            if (!serialComm.IsOpen)
-            {
-                MessageBox.Show("Please Connect Device");
-                return;
-            }
-            if (!reading)
-            {
-                reading = true;
-                cts = new CancellationTokenSource();
-                Task.Run(() => ReadLoop(cts.Token));
-            }
-        }
-
-        private void BtnStop_Click(object sender, EventArgs e)
-        {
-            reading = false;
-            if (cts != null)
-            {
-                cts.Cancel();
-            }
-        }
-
-        private void ReadLoop(CancellationToken token)
-        {
-            while (!token.IsCancellationRequested)
-            {
-                if (!serialComm.IsOpen)
-                {
-                    // 序列埠已經關閉或失效，就暫停一小段時間
-                    Thread.Sleep(500);
-                    continue;
-                }
-
                 try
                 {
-                    var sensor = serialComm.ReadSensorStruct();
-                    if (sensor.HasValue)
-                    {
-                        latestSensor = sensor;
-                        this.Invoke((MethodInvoker)delegate
-                        {
-                            UpdateUI(sensor.Value);
-                        });
-                    }
+                    var dir = _services.EnsureExportDir();
+                    if (Directory.Exists(dir))
+                        Process.Start("explorer.exe", dir);
                 }
-                catch (InvalidOperationException ex)
-                {
-                    // 代表裝置或序列埠不允許這樣操作
-                    // 可以在這裡顯示錯誤或記錄
-                    this.Invoke((MethodInvoker)delegate
-                    {
-                        MessageBox.Show("SerialPort Abnormal：" + ex.Message);
-                    });
-                    // 也可停止讀取
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    // 其他例外處理
-                    this.Invoke((MethodInvoker)delegate
-                    {
-                        MessageBox.Show("Reading Error Occurred：" + ex.Message);
-                    });
-                    break;
-                }
-
-                double interval = (double)numInterval.Value;
-                if (interval < 0.05) interval = 0.05;
-                Thread.Sleep((int)(interval * 1000));
+                catch { /* ignore */ }
+                e.Handled = true;
             }
         }
 
-
-        private (double voltage, double current, double power) GetCalibratedValues(string group, string ch, PowerSensor ps)
+        private void OnDeviceChanged()
         {
-            double v = ps.Voltage / 1000.0;
-            double c = ps.Current / 1000.0;
-            string key = group + " " + ch;
-            if (CalibrationForm.calibrationParams.ContainsKey(key))
-            {
-                var cal = CalibrationForm.calibrationParams[key];
-                v = v * cal.voltage_gain + cal.voltage_offset;
-                c = c * cal.current_gain + cal.current_offset;
-            }
-            double p = v * c;
-            return (v, c, p);
+            var sel = (cmbDevice.SelectedItem?.ToString() ?? "PMD2").Trim();
+            if (sel != "PMD2" && sel != "PMD-USB") sel = "PMD2";
+
+            if (_currentDevice == sel) return;
+            _currentDevice = sel;
+
+            // 記住使用者選擇
+            _services.SetSetting("SelectedDevice", _currentDevice);
+
+            // 切換 View
+            EnsureViewForDevice(_currentDevice);
+
+            _services.LogInfo($"Switched device UI to: {_currentDevice}");
+            SetStatus($"Device: {_currentDevice}");
         }
 
-        // 更新個別通道的即時顯示與最大/最小記錄，並同步更新圖表 (不改變原有 graph 設定)
-        private void UpdateChannelUI(string group, string ch, double v, double c, double p)
+        private void OnLogEmitted(LogEntry e)
         {
-            if (group == "ATX")
+            // 更新狀態列（左側）
+            _services.UiPost(() =>
             {
-                atxLabels["Voltage"][ch].Text = v.ToString("F3");
-                atxLabels["Current"][ch].Text = c.ToString("F3");
-                atxLabels["Power"][ch].Text = p.ToString("F3");
-            }
-            else if (group == "EPS")
-            {
-                epsLabels["Voltage"][ch].Text = v.ToString("F3");
-                epsLabels["Current"][ch].Text = c.ToString("F3");
-                epsLabels["Power"][ch].Text = p.ToString("F3");
-            }
-            else if (group == "PCIE")
-            {
-                pcieLabels["Voltage"][ch].Text = v.ToString("F3");
-                pcieLabels["Current"][ch].Text = c.ToString("F3");
-                pcieLabels["Power"][ch].Text = p.ToString("F3");
-            }
-
-            if (chkEnableMaxMin.Checked)
-            {
-                bool useMax = rbMax.Checked;
-                double oldV = recordValues[group]["Voltage"][ch];
-                double oldC = recordValues[group]["Current"][ch];
-                double oldP = recordValues[group]["Power"][ch];
-                double newV = useMax ? Math.Max(oldV, v) : (oldV == 0 ? v : Math.Min(oldV, v));
-                double newC = useMax ? Math.Max(oldC, c) : (oldC == 0 ? c : Math.Min(oldC, c));
-                double newP = useMax ? Math.Max(oldP, p) : (oldP == 0 ? p : Math.Min(oldP, p));
-                recordValues[group]["Voltage"][ch] = newV;
-                recordValues[group]["Current"][ch] = newC;
-                recordValues[group]["Power"][ch] = newP;
-
-                if (group == "ATX")
-                {
-                    atxRecordLabels["Voltage"][ch].Text = newV.ToString("F3");
-                    atxRecordLabels["Current"][ch].Text = newC.ToString("F3");
-                    atxRecordLabels["Power"][ch].Text = newP.ToString("F3");
-                }
-                else if (group == "EPS")
-                {
-                    epsRecordLabels["Voltage"][ch].Text = newV.ToString("F3");
-                    epsRecordLabels["Current"][ch].Text = newC.ToString("F3");
-                    epsRecordLabels["Power"][ch].Text = newP.ToString("F3");
-                }
-                else if (group == "PCIE")
-                {
-                    pcieRecordLabels["Voltage"][ch].Text = newV.ToString("F3");
-                    pcieRecordLabels["Current"][ch].Text = newC.ToString("F3");
-                    pcieRecordLabels["Power"][ch].Text = newP.ToString("F3");
-                }
-            }
-
-            if (graphForm != null && !graphForm.IsDisposed)
-            {
-                graphForm.AddValue(ch, v, c, p);
-            }
+                statusLeft.Text = $"{e.Timestamp:HH:mm:ss} {e.Level}: {e.Message}";
+            });
         }
 
-        // 修改後的 UpdateUI：直接將各通道校正後的 Voltage、Current 與 Power 累加後更新 Total 通道
-        private void UpdateUI(SensorStruct sensor)
+        // ---------------- 連線流程（之後接 Backend） ----------------
+
+        private void DoConnect()
         {
-            var pr = sensor.PowerReadings;
-            double totalVoltage = 0.0;
-            double totalCurrent = 0.0;
-            double totalPower = 0.0;
+            if (_connected) return;
 
-            // ATX 通道 (索引 0~3)
-            for (int i = 0; i < 4; i++)
-            {
-                var (v, c, p) = GetCalibratedValues("ATX", atxChannels[i], pr[i]);
-                totalVoltage += v;
-                totalCurrent += c;
-                totalPower += p;
-                UpdateChannelUI("ATX", atxChannels[i], v, c, p);
-            }
-            // EPS 通道 (索引 5、6)
-            for (int i = 5; i <= 6; i++)
-            {
-                var (v, c, p) = GetCalibratedValues("EPS", epsChannels[i - 5], pr[i]);
-                totalVoltage += v;
-                totalCurrent += c;
-                totalPower += p;
-                UpdateChannelUI("EPS", epsChannels[i - 5], v, c, p);
-            }
-            // PCIE 通道 (索引依序為 7, 8, 9, 4)
-            int[] pcieIdx = { 7, 8, 9, 4 };
-            for (int i = 0; i < 4; i++)
-            {
-                var (v, c, p) = GetCalibratedValues("PCIE", pcieChannels[i], pr[pcieIdx[i]]);
-                totalVoltage += v;
-                totalCurrent += c;
-                totalPower += p;
-                UpdateChannelUI("PCIE", pcieChannels[i], v, c, p);
-            }
+            var dev = _currentDevice; // PMD2 / PMD-USB
+            var port = (cmbPort.Text ?? "AUTO").Trim();
+            var baud = (cmbBaud.Text ?? "AUTO").Trim();
 
-            lblTotalPower.Text = $"Total Power: {totalPower:F3} W";
-            if (graphForm != null && !graphForm.IsDisposed)
+            // 記住選擇
+            _services.SetSetting("LastComPort", port);
+            _services.SetSetting("LastBaud", baud);
+
+            // 這裡先不創建真正 Backend；先當作成功，方便串 UI。
+            _connected = true;
+            btnConnect.Enabled = false;
+            btnDisconnect.Enabled = true;
+            cmbDevice.Enabled = false;
+            cmbPort.Enabled = false;
+            cmbBaud.Enabled = false;
+
+            _services.LogInfo($"Connect requested: device={dev}, port={port}, baud={baud}");
+            SetStatus($"Connected ({dev})");
+            // 後續你會要我加：BackendFactory + IBackend.Open(BackendOpenArgs)
+        }
+
+        private void DoDisconnect()
+        {
+            if (!_connected) return;
+
+            // 後續在這裡釋放 Backend、關閉串流
+            _connected = false;
+            btnConnect.Enabled = true;
+            btnDisconnect.Enabled = false;
+            cmbDevice.Enabled = true;
+            cmbPort.Enabled = true;
+            cmbBaud.Enabled = true;
+
+            _services.LogInfo("Disconnected.");
+            SetStatus("Disconnected");
+        }
+
+        // ---------------- 輔助 ----------------
+
+        private void SetStatus(string msg)
+        {
+            statusRight.Text = msg;
+        }
+
+        private void LoadPersistedUiState()
+        {
+            try
             {
-                graphForm.AddValue("Total", totalVoltage, totalCurrent, totalPower);
+                var selDev = _services.GetSetting("SelectedDevice", "PMD2");
+                if (selDev != "PMD2" && selDev != "PMD-USB") selDev = "PMD2";
+                _currentDevice = selDev;
+                cmbDevice.SelectedItem = _currentDevice;
+
+                var lastPort = _services.GetSetting("LastComPort", "AUTO");
+                if (!string.IsNullOrWhiteSpace(lastPort) && !cmbPort.Items.Contains(lastPort))
+                    cmbPort.Items.Add(lastPort);
+                cmbPort.Text = lastPort;
+
+                var lastBaud = _services.GetSetting("LastBaud", "AUTO");
+                if (!string.IsNullOrWhiteSpace(lastBaud) && cmbBaud.Items.Contains(lastBaud))
+                    cmbBaud.SelectedItem = lastBaud;
+                else
+                    cmbBaud.SelectedIndex = 0;
+            }
+            catch
+            {
+                cmbDevice.SelectedItem = "PMD2";
+                cmbPort.Text = "AUTO";
+                cmbBaud.SelectedIndex = 0;
             }
         }
 
+        private void EnsureViewForDevice(string dev)
+        {
+            // 卸載舊的
+            if (_currentView != null)
+            {
+                panelHost.Controls.Remove(_currentView);
+                _currentView.Dispose();
+                _currentView = null;
+            }
 
+            // 建立新的（先嘗試載入預期的 View；若還沒做，fallback 一個空白面板避免編譯炸裂）
+            try
+            {
+                if (dev == "PMD-USB")
+                {
+                    // 目標：App.Views.PmdUsbView（之後你叫我給）
+                    var t = Type.GetType("PMD2_PMDUSB.App.Views.PmdUsbView, PMD2_PMDUSB");
+                    _currentView = t != null ? (UserControl?)Activator.CreateInstance(t) : null;
+                }
+                else
+                {
+                    // 目標：App.Views.Pmd2View
+                    var t = Type.GetType("PMD2_PMDUSB.App.Views.Pmd2View, PMD2_PMDUSB");
+                    _currentView = t != null ? (UserControl?)Activator.CreateInstance(t) : null;
+                }
+            }
+            catch
+            {
+                _currentView = null;
+            }
 
+            if (_currentView == null)
+            {
+                // 後備空白頁，避免在尚未建立 Views/* 時無法執行
+                _currentView = new PlaceholderView(dev);
+            }
 
+            _currentView.Dock = DockStyle.Fill;
+            panelHost.Controls.Add(_currentView);
+        }
+
+        // 一個簡單的占位 View（還沒做真正 Pmd2View/PmdUsbView 前用）
+        private sealed class PlaceholderView : UserControl
+        {
+            public PlaceholderView(string dev)
+            {
+                BackColor = Color.White;
+                var lbl = new Label
+                {
+                    AutoSize = false,
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Font = new Font("Segoe UI", 16, FontStyle.Regular),
+                    Text = $"{dev} View\n(尚未建立 App/Views/{(dev == "PMD-USB" ? "PmdUsbView" : "Pmd2View")}.cs)"
+                };
+                Controls.Add(lbl);
+            }
+        }
     }
 }
