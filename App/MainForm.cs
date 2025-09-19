@@ -55,10 +55,11 @@ namespace PMD2_PMDUSB.App
             var info = new Label
             {
                 Dock = DockStyle.Top,
-                Height = 36,
+                Height = 200,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(8, 0, 8, 0),
-                Text = "Description: Switch between PMD2 / PMD-USB on the left side. The previous view will be closed when switching."
+                Text = "Switch between PMD2 / PMD-USB \nWhile connected in PMD2 , stop reading before switching peripherals or performing a reload, otherwise the operation will fail.",
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
 
             _leftPane.Controls.Add(info);
