@@ -4,15 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{ABAFEBFF-0BC7-42F7-872D-C766FAD6E239}</ProjectGuid>
+    <ProjectGuid>{EE70D362-D5FC-41F0-A755-581E37706F2B}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>PMD2_PMDUSB</RootNamespace>
-    <AssemblyName>PMD2_PMDUSB</AssemblyName>
+    <RootNamespace>PMD2</RootNamespace>
+    <AssemblyName>PMD2</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <PublishUrl>publish\</PublishUrl>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <PublishUrl>C:\Users\Jimmy1_Hua\Desktop\PMD2_Jimmy_0307_exe\新增資料夾\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
     <UpdateEnabled>false</UpdateEnabled>
@@ -22,12 +23,12 @@
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
+    <AutorunEnabled>true</AutorunEnabled>
+    <ApplicationRevision>2</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
+    <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -49,11 +50,51 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>PMD2_PMDUSB.Program</StartupObject>
+    <ManifestCertificateThumbprint>DBE93CE9BC653ED834ABEE2323586A376F691781</ManifestCertificateThumbprint>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestKeyFile>PMD2_TemporaryKey.pfx</ManifestKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifests>true</GenerateManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignManifests>true</SignManifests>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=9.0.0.3, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.9.0.3\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Pipelines, Version=9.0.0.3, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.Pipelines.9.0.3\lib\net462\System.IO.Pipelines.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web, Version=9.0.0.3, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encodings.Web.9.0.3\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json, Version=9.0.0.3, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.9.0.3\lib\net462\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -65,62 +106,42 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="App\Components\DeviceToggle.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="App\MainForm.cs" />
-    <Compile Include="App\Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ThirdParty\PMD2_Original\CalibrationForm.cs">
+    <Compile Include="CalibrationForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\CalibrationForm.Designer.cs">
+    <Compile Include="CalibrationForm.Designer.cs">
       <DependentUpon>CalibrationForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\Constants.cs" />
-    <Compile Include="ThirdParty\PMD2_Original\CsvSettingsForm.cs">
+    <Compile Include="Constants.cs" />
+    <Compile Include="CsvSettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\CsvSettingsForm.Designer.cs">
+    <Compile Include="CsvSettingsForm.Designer.cs">
       <DependentUpon>CsvSettingsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\DBPanel.cs">
+    <Compile Include="DBPanel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\DisplayHelper.cs" />
-    <Compile Include="ThirdParty\PMD2_Original\Exporter.cs" />
-    <Compile Include="ThirdParty\PMD2_Original\MainForm.cs">
+    <Compile Include="DisplayHelper.cs" />
+    <Compile Include="Exporter.cs" />
+    <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\MainForm.Designer.cs">
+    <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\MonitorGraph.cs">
+    <Compile Include="MonitorGraph.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\MonitorGraphForm.cs">
+    <Compile Include="MonitorGraphForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\MonitorGraphForm.Designer.cs">
+    <Compile Include="MonitorGraphForm.Designer.cs">
       <DependentUpon>MonitorGraphForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ThirdParty\PMD2_Original\SerialComm.cs" />
-    <Compile Include="ThirdParty\PMD_USB_Original\DataLogger.cs" />
-    <Compile Include="ThirdParty\PMD_USB_Original\DBPanel.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="ThirdParty\PMD_USB_Original\FormPMD.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ThirdParty\PMD_USB_Original\FormPMD.Designer.cs">
-      <DependentUpon>FormPMD.cs</DependentUpon>
-    </Compile>
-    <Compile Include="ThirdParty\PMD_USB_Original\MonitorGraph.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ThirdParty\PMD_USB_Original\MonitorGraph.designer.cs">
-      <DependentUpon>MonitorGraph.cs</DependentUpon>
-    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SerialComm.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -129,14 +150,9 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
-      <DesignTime>True</DesignTime>
     </Compile>
-    <EmbeddedResource Include="ThirdParty\PMD_USB_Original\FormPMD.resx">
-      <DependentUpon>FormPMD.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ThirdParty\PMD_USB_Original\MonitorGraph.resx">
-      <DependentUpon>MonitorGraph.cs</DependentUpon>
-    </EmbeddedResource>
+    <None Include="packages.config" />
+    <None Include="PMD2_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -146,9 +162,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="ThirdParty\PMD2_Original\packages.config" />
-    <None Include="ThirdParty\PMD2_Original\PMD2.csproj" />
-    <None Include="ThirdParty\PMD_USB_Original\PMD-USB.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -164,10 +177,6 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
-  </ItemGroup>
-  <ItemGroup />
-  <ItemGroup>
-    <Content Include="ThirdParty\PMD_USB_Original\e_ny_rund_mod_1162x1162_Qtf_icon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

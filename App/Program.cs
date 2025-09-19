@@ -3,7 +3,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-using PMD2;
 
 namespace PMD2_PMDUSB.App
 {
