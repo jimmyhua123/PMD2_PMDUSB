@@ -26,7 +26,7 @@ namespace PMD2_PMDUSB.App
         public MainForm()
         {
             Text = "PMD2 / PMD-USB - Shell";
-            MinimumSize = new Size(980, 680);
+            MinimumSize = new Size(1240, 550);
             StartPosition = FormStartPosition.CenterScreen;
 
             // 左側控制區
