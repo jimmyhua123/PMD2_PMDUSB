@@ -43,8 +43,8 @@ namespace PMD2
 
         //Timer timerAnimation;
         //int frame_counter = -1;
-
-        ContextMenu context_menu;
+        ContextMenuStrip context_menu;
+        //ContextMenu context_menu;
         private int logging_id;
 
         public int x_step = 1;
@@ -82,12 +82,14 @@ namespace PMD2
 
             panel1.Paint += new PaintEventHandler(panel1_Paint);
 
-            context_menu = new ContextMenu();
-            context_menu.MenuItems.Add("Show in detached window", OpenDetachedView);
-            context_menu.MenuItems.Add("Add to Data Logger", AddToDataLogger);
-            context_menu.MenuItems.Add("Reset Min/Max", ResetMinMax);
+            // TODO ContextMenu 已不再受支援。請改用 ContextMenuStrip。如需詳細資料，請參閱 https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls。
+            context_menu = new ContextMenuStrip();
+            context_menu.Items.Add("Show in detached window", null, OpenDetachedView);
+            context_menu.Items.Add("Add to Data Logger", null, AddToDataLogger);
+            context_menu.Items.Add("Reset Min/Max", null, ResetMinMax);
+            panel1.ContextMenuStrip = context_menu;
 
-            panel1.ContextMenu = context_menu;
+            panel1.ContextMenuStrip = context_menu;
             logging_id = -1;
             ParentDescription = parent_desc;
         }
@@ -106,22 +108,7 @@ namespace PMD2
 
         private void AddToDataLogger(object sender, EventArgs e)
         {
-            /*if(logging_id == -1) {
-                // Add logging item
-                string log_desc;
-                if(ParentDescription != "") {
-                    log_desc = ParentDescription + " - " + desc;
-                } else {
-                    log_desc = desc;
-                }
-                logging_id = Program.data_logger.AddLogItem(log_desc, suffix);
-                context_menu.MenuItems[1].Text = "Remove from Data Logger";
-            } else {
-                // Remove logging item
-                Program.data_logger.RemoveLogItem(logging_id);
-                logging_id = -1;
-                context_menu.MenuItems[1].Text = "Add to Data Logger";
-            }*/
+
         }
         Font DescriptionFont = new Font("Consolas", 9);
         Font HoverFont = new Font("Consolas", 9);
@@ -173,22 +160,7 @@ namespace PMD2
                 SizeF str_size = g.MeasureString(hoverText, HoverFont);
                 g.DrawString(hoverText, HoverFont, Brushes.MediumPurple, new Point(Size.Width - (int)str_size.Width - 1, Size.Height - (int)str_size.Height));
 
-                /*if (e.Graphics.MeasureString(hoverText, HoverFont).Width <= this.Width)
-                {
 
-                }
-                else
-                {
-                    hoverText = hoverText.Replace(suffix.ToString() + " ", "");
-                    if (e.Graphics.MeasureString(hoverText, HoverFont).Width <= this.Width)
-                    {
-                        g.DrawString(hoverText, HoverFont, Brushes.Purple, new Point(0, Size.Height - 20));
-                    }
-                    else
-                    {
-                        g.DrawString((values[x_value].ToString(format) + " " + suffix).PadLeft(10, ' '), HoverFont, Brushes.Purple, new Point(this.Size.Width - 75, Size.Height-20));
-                    }
-                }*/
 
             }
             else
@@ -212,11 +184,7 @@ namespace PMD2
         public void AddValue(double val)
         {
 
-            /*if(logging_id != -1) {
-                if(Program.data_logger.UpdateValue(logging_id, val) == false) {
-                    AddToDataLogger(null, null);
-                }
-            }*/
+
 
             values.Add(val);
 
@@ -230,21 +198,7 @@ namespace PMD2
             if (val > maxValueTotal) maxValueTotal = val;
             if (val < minValueTotal) minValueTotal = val;
 
-            /*if (val > maxValue) maxValue = val;
-            if (val < minValue) minValue = val;
-            if(minValue > maxValue) {
-                maxValue = minValue;
-            }*/
-            //}
 
-            // Find min/max
-
-            //double newMax = Double.MinValue;
-            //double newMin = Double.MaxValue;
-            //foreach(double value in values) {
-            //if(value > newMax) newMax = value;
-            //if(value < newMin) newMin = value;
-            //}
 
             minValue = 0;
             maxValue = values.Max();
@@ -267,21 +221,7 @@ namespace PMD2
 
             }
 
-            // Trigger animation
-            /*if(this.Enabled && graphPoints.Length > 2) {
-                graphPointsAnimate = new Point[graphPoints.Length - 1];
-                for(int i = 0; i < graphPointsAnimate.Length; i++) {
-                    graphPointsAnimate[i] = graphPoints[i];
-                }
-                animateFrom = graphPoints[graphPoints.Length - 2];
-                animateTo = graphPoints[graphPoints.Length - 1];
-                timerAnimation.Start();
-            } else {
-                // Update graph
-                if(this.Enabled) {
-                    panel1.Invalidate();
-                }
-            }*/
+
 
             // Update graph
             if (this.Enabled)
@@ -309,21 +249,6 @@ namespace PMD2
                 values.RemoveAt(0);
             }
 
-            //latestVal = val.ToString(format) + " " + suffix;
-
-            //if(val > maxValueTotal) maxValueTotal = val;
-            //if(val < minValueTotal) minValueTotal = val;
-
-            // Find min/max
-            /*maxValue = Double.MinValue;
-            foreach(double value in values) {
-                if(value > maxValue) maxValue = value;
-            }*/
-            //maxValue = values.Max();
-            //maxValue = 60;
-            //maxValue = 15;
-
-            //minValue = 0;
 
             graphPoints = new Point[values.Count];
 
@@ -343,21 +268,7 @@ namespace PMD2
 
             }
 
-            // Trigger animation
-            /*if(this.Enabled && graphPoints.Length > 2) {
-                graphPointsAnimate = new Point[graphPoints.Length - 1];
-                for(int i = 0; i < graphPointsAnimate.Length; i++) {
-                    graphPointsAnimate[i] = graphPoints[i];
-                }
-                animateFrom = graphPoints[graphPoints.Length - 2];
-                animateTo = graphPoints[graphPoints.Length - 1];
-                timerAnimation.Start();
-            } else {
-                // Update graph
-                if(this.Enabled) {
-                    panel1.Invalidate();
-                }
-            }*/
+
 
             // Update graph
             if (this.Enabled)
@@ -387,3 +298,5 @@ namespace PMD2
         }
     }
 }
+
+
