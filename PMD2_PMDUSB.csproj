@@ -97,6 +97,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="App\Components\ComBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="App\Components\DeviceToggle.cs">
       <SubType>UserControl</SubType>
     </Compile>

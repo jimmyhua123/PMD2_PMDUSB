@@ -20,19 +20,7 @@ namespace PMD2
                     Console.WriteLine("No available serial ports found.");
                     return false;
                 }
-
-                serialPort = new SerialPort(ports[0], 1500000);
-                serialPort.ReadTimeout = 1000;
-                serialPort.Open();
-                serialPort.RtsEnable = false;
-                System.Threading.Thread.Sleep(200);
-                serialPort.RtsEnable = true;
-                System.Threading.Thread.Sleep(200); // 可嘗試 200~500 ms
-
-
-                
-
-                return true;
+                return Open(ports[0], 1500000);
             }
             catch (Exception ex)
             {
@@ -210,5 +198,65 @@ namespace PMD2
 
             return s;
         }
+
+        public bool Open(string portName, int baudRate)
+        {
+            try
+            {
+                // 若先前尚未釋放，先關閉
+                Close();
+
+                serialPort = new SerialPort(portName, baudRate)
+                {
+                    ReadTimeout = 1000,
+                    WriteTimeout = 1000,
+                    DtrEnable = false,
+                    RtsEnable = false,
+                    NewLine = "\n"
+                };
+
+                serialPort.Open();
+
+                // 你原本做的 RTS「落下→等待→拉高」序列，保留
+                serialPort.RtsEnable = false;
+                System.Threading.Thread.Sleep(200);
+                serialPort.RtsEnable = true;
+                System.Threading.Thread.Sleep(200);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to open {portName} @ {baudRate}: {ex.Message}");
+                // 若開啟失敗也確保釋放
+                Close();
+                return false;
+            }
+        }
+
+        public void Close()
+        {
+            try
+            {
+                if (serialPort != null)
+                {
+                    if (serialPort.IsOpen)
+                    {
+                        // 如有背景讀取執行緒，務必先停止（上層已做 reading=false/cancel）
+                        serialPort.Close();
+                    }
+                    serialPort.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Close port error: {ex.Message}");
+            }
+            finally
+            {
+                serialPort = null; // 很重要：清成 null 以便之後能乾淨重連
+            }
+        }
+
     }
 }

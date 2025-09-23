@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using PMD2_PMDUSB.App.Components;
+using System.Reflection;   // ← 新增
 
 
 // 兩邊原始 UI 的命名空間：
@@ -58,7 +59,7 @@ namespace PMD2_PMDUSB.App
                 Height = 200,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(8, 0, 8, 0),
-                Text = "Switch between PMD2 / PMD-USB \nWhile connected in PMD2 , stop reading before switching peripherals or performing a reload, otherwise the operation will fail.",
+                Text = "Switch between PMD2 / PMD-USB \nWhile connected in PMD2 , disconnect before switching peripherals or performing a reload, otherwise the operation will fail.",
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
 
@@ -185,5 +186,7 @@ namespace PMD2_PMDUSB.App
             // 關閉應用前，確實釋放內嵌視圖資源
             SafeCloseChild();
         }
+
+
     }
 }

@@ -4,6 +4,9 @@ using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using PMD2_PMDUSB.App.Components; // 引用 ComBar
+using System.IO.Ports;
+
 
 namespace PMD2
 {
@@ -42,10 +45,20 @@ namespace PMD2
         private CancellationTokenSource cts;
         private SensorStruct? latestSensor;
 
+        private ComBar _comBar;
 
         public MainForm()
         {
             InitializeComponent(); // Designer 空檔，僅用程式碼生成
+            serialComm = new SerialComm();
+
+            // 插入 ComBar 在最上方
+            _comBar = new ComBar();
+            _comBar.Dock = DockStyle.Bottom;
+            _comBar.ConnectRequested += OnConnectRequested;
+            _comBar.DisconnectRequested += OnDisconnectRequested;
+            Controls.Add(_comBar);
+            _comBar.BringToFront();
 
             this.Text = "PMD2 MainForm - Full Code Layout";
             this.Width = 1000;  // 調整寬度
@@ -617,8 +630,57 @@ namespace PMD2
             }
         }
 
+        private void OnConnectRequested(object sender, ConnectArgs e)
+        {
+            try
+            {
+                // 若已開啟，先關掉（確保能重連）
+                if (serialComm.IsOpen)
+                    serialComm.Close();
 
+                // 指定使用者在 ComBar 選的埠與鮑率
+                if (!serialComm.Open(e.Port, e.Baud))
+                    throw new Exception("Open port failed.");
 
+                // 可選：做握手，握手失敗也要關閉避免卡死
+                if (!serialComm.DeviceHandshake())
+                    throw new Exception("Handshake failed.");
+
+                _comBar.SetConnectedState(true);
+                lblStatus.Text = $"Status：Connected ({e.Port} @ {e.Baud})";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Connect failed: " + ex.Message);
+                try { serialComm.Close(); } catch { }
+                _comBar.SetConnectedState(false);
+                lblStatus.Text = "Status：Disconnected";
+            }
+        }
+
+        private void OnDisconnectRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                // 建議先停止讀取 loop
+                reading = false;
+                if (cts != null) cts.Cancel();
+
+                serialComm.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Disconnect failed: " + ex.Message);
+            }
+            finally
+            {
+                _comBar.SetConnectedState(false);
+                lblStatus.Text = "Status：Disconnected";
+            }
+        }
 
     }
+
+
 }
+
